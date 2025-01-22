@@ -2,11 +2,11 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-draw';
+import { calculateArea } from '../../utils/geometry';
 
 interface MapProps {
-  onAOICreated: (geometry: any) => void;
+  onAOICreated: (geometry: any, coordinates: number[][]) => void;
 }
 
 export default function Map({ onAOICreated }: MapProps) {
@@ -17,11 +17,11 @@ export default function Map({ onAOICreated }: MapProps) {
   useEffect(() => {
     if (mapContainerRef.current && !mapRef.current) {
       // Inicializa o mapa
-      mapRef.current = L.map(mapContainerRef.current).setView([0, 0], 2);
+      mapRef.current = L.map(mapContainerRef.current).setView([-14.235, -51.925], 4);
 
       // Adiciona o layer base do OpenStreetMap
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
+        attribution: '© OpenStreetMap contributors'
       }).addTo(mapRef.current);
 
       // Cria layer para os desenhos
@@ -40,18 +40,18 @@ export default function Map({ onAOICreated }: MapProps) {
             allowIntersection: false,
             drawError: {
               color: '#e1e100',
-              message:
-                '<strong>Erro:</strong> Você não pode intersectar linhas!',
+              message: '<strong>Erro:</strong> Você não pode intersectar linhas!'
             },
             shapeOptions: {
               color: '#97009c',
-            },
-          },
+              fillOpacity: 0.3
+            }
+          }
         },
         edit: {
           featureGroup: drawLayerRef.current,
-          remove: true,
-        },
+          remove: true
+        }
       });
 
       mapRef.current.addControl(drawControl);
@@ -59,27 +59,28 @@ export default function Map({ onAOICreated }: MapProps) {
       // Evento para quando um desenho é completado
       mapRef.current.on(L.Draw.Event.CREATED, (e: any) => {
         const layer = e.layer;
-        drawLayerRef.current?.clearLayers(); // Limpa desenhos anteriores
+        
+        // Limpa desenhos anteriores
+        drawLayerRef.current?.clearLayers();
         drawLayerRef.current?.addLayer(layer);
+
+        // Obtém as coordenadas do polígono
+        const coordinates = layer.getLatLngs()[0].map((latLng: any) => [
+          latLng.lat,
+          latLng.lng
+        ]);
 
         // Obtém a geometria em GeoJSON
         const geoJSON = layer.toGeoJSON();
-        onAOICreated(geoJSON.geometry);
-      });
+        
+        // Calcula a área
+        const area = calculateArea(coordinates);
 
-      // Evento para quando um desenho é editado
-      mapRef.current.on(L.Draw.Event.EDITED, (e: any) => {
-        const layers = e.layers;
-        layers.eachLayer((layer: any) => {
-          const geoJSON = layer.toGeoJSON();
-          onAOICreated(geoJSON.geometry);
-        });
-      });
-
-      // Evento para quando um desenho é deletado
-      mapRef.current.on(L.Draw.Event.DELETED, () => {
-        // Aqui você pode adicionar lógica para limpar dados do LULC
-        console.log('AOI deletada');
+        // Faz zoom para a área desenhada
+        mapRef.current?.fitBounds(layer.getBounds());
+        
+        // Envia dados para o componente pai
+        onAOICreated(geoJSON.geometry, coordinates);
       });
     }
 

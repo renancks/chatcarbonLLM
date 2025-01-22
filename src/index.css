@@ -1,3 +1,10 @@
+/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Estilos do Leaflet */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+}

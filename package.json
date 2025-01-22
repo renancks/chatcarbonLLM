@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/earthengine": "^1.4.5",
+    "@turf/turf": "^7.2.0",
     "@types/leaflet-draw": "^1.0.11",
     "groq-sdk": "^0.3.3",
     "leaflet": "^1.9.4",

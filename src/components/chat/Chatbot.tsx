@@ -1,7 +1,8 @@
-// src/components/Chatbot.tsx
-import { useState } from 'react';
+// src/components/chat/Chatbot.tsx
+import { useState, useEffect } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import Groq from 'groq-sdk';
+import { AOIData } from '../../types';
 
 interface ChatMessage {
   text: string;
@@ -10,25 +11,36 @@ interface ChatMessage {
 }
 
 interface ChatbotProps {
-  onCommand: (command: string) => void;
+  currentAOI: AOIData | null;
+  loading: boolean;
 }
 
-// Inicialize o cliente Groq com a configuração correta
 const groq = new Groq({
   apiKey: import.meta.env.VITE_GROQ_API_KEY,
-  dangerouslyAllowBrowser: true, // Adicionada a configuração necessária
+  dangerouslyAllowBrowser: true
 });
 
-export default function Chatbot({ onCommand }: ChatbotProps) {
+export default function Chatbot({ currentAOI, loading }: ChatbotProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
-      text: "Hello! I'm your GIS assistant. I can help you analyze areas for carbon credit projects. Try drawing a polygon on the map and ask me about it!",
+      text: "Hello! I'm your GIS assistant. Draw a polygon on the map!",
       isUser: false,
-      timestamp: new Date(),
-    },
+      timestamp: new Date()
+    }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (currentAOI) {
+      const areaMessage = `New area selected: ${currentAOI.area.toFixed(2)} hectares`;
+      setMessages(prev => [...prev, {
+        text: areaMessage,
+        isUser: false,
+        timestamp: new Date()
+      }]);
+    }
+  }, [currentAOI]);
 
   const processMessage = async (userMessage: string) => {
     setIsLoading(true);
@@ -37,43 +49,33 @@ export default function Chatbot({ onCommand }: ChatbotProps) {
         messages: [
           {
             role: 'system',
-            content:
-              'You are a GIS assistant helping with carbon credit projects. You can analyze land use, calculate areas, and provide insights about drawn regions on the map.',
+            content: 'You are a GIS assistant helping with carbon credit projects.'
           },
           {
             role: 'user',
-            content: userMessage,
-          },
+            content: userMessage
+          }
         ],
         model: 'mixtral-8x7b-32768',
         temperature: 0.7,
         max_tokens: 1024,
       });
 
-      const responseText =
-        completion.choices[0]?.message?.content ||
+      const responseText = completion.choices[0]?.message?.content || 
         "I'm sorry, I couldn't process that request.";
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: responseText,
-          isUser: false,
-          timestamp: new Date(),
-        },
-      ]);
-
-      onCommand(responseText);
+      setMessages(prev => [...prev, {
+        text: responseText,
+        isUser: false,
+        timestamp: new Date()
+      }]);
     } catch (error) {
-      console.error('Error processing message:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: "I'm sorry, I encountered an error processing your request.",
-          isUser: false,
-          timestamp: new Date(),
-        },
-      ]);
+      console.error('Error:', error);
+      setMessages(prev => [...prev, {
+        text: "I'm sorry, I encountered an error processing your request.",
+        isUser: false,
+        timestamp: new Date()
+      }]);
     } finally {
       setIsLoading(false);
     }
@@ -84,15 +86,12 @@ export default function Chatbot({ onCommand }: ChatbotProps) {
 
     const userMessage = input.trim();
     setInput('');
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        text: userMessage,
-        isUser: true,
-        timestamp: new Date(),
-      },
-    ]);
+    
+    setMessages(prev => [...prev, {
+      text: userMessage,
+      isUser: true,
+      timestamp: new Date()
+    }]);
 
     await processMessage(userMessage);
   };
@@ -107,9 +106,7 @@ export default function Chatbot({ onCommand }: ChatbotProps) {
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex ${
-              message.isUser ? 'justify-end' : 'justify-start'
-            }`}
+            className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
           >
             <div
               className={`max-w-[80%] p-3 rounded-lg ${
@@ -119,11 +116,7 @@ export default function Chatbot({ onCommand }: ChatbotProps) {
               }`}
             >
               {message.text}
-              <div
-                className={`text-xs mt-1 ${
-                  message.isUser ? 'text-blue-100' : 'text-gray-500'
-                }`}
-              >
+              <div className={`text-xs mt-1 ${message.isUser ? 'text-blue-100' : 'text-gray-500'}`}>
                 {message.timestamp.toLocaleTimeString()}
               </div>
             </div>
@@ -147,11 +140,7 @@ export default function Chatbot({ onCommand }: ChatbotProps) {
             disabled={isLoading}
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg p-2 transition-colors disabled:bg-blue-400"
           >
-            {isLoading ? (
-              <Loader2 className="animate-spin" size={20} />
-            ) : (
-              <Send size={20} />
-            )}
+            {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
           </button>
         </div>
       </div>
